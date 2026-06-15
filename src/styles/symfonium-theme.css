@@ -1,0 +1,79 @@
+/* Symfonium-inspired dark theme enhancements */
+:root {
+  --accent-rgb: 233, 69, 96;
+  --glow: 0 0 20px rgba(var(--accent-rgb), 0.3);
+}
+
+/* Gradient backgrounds */
+.main-content {
+  background: linear-gradient(180deg, 
+    var(--bg-primary) 0%, 
+    rgba(var(--accent-rgb), 0.05) 100%
+  );
+}
+
+/* Card hover effects */
+.album-card {
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.album-card:hover {
+  box-shadow: var(--glow);
+}
+
+/* Smooth scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
+
+/* Animation for track changes */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.track-item {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+/* Pulse for playing track */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.current .track-title {
+  color: var(--accent);
+  animation: pulse 2s infinite;
+}
+
+/* Glass morphism for modals */
+.now-playing-panel {
+  backdrop-filter: blur(20px);
+  background: rgba(26, 26, 46, 0.95);
+}
+
+/* Shuffle & repeat active states */
+.control-btn.active {
+  color: var(--accent);
+  text-shadow: 0 0 10px rgba(var(--accent-rgb), 0.5);
+}
