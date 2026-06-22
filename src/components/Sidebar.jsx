@@ -5,7 +5,7 @@ import {
   IoHome, IoMusicalNotes, IoSearch,
   IoList, IoAlbums, IoPeople,
   IoHeart, IoChevronDown, IoChevronUp,
-  IoShare, IoPerson
+  IoShare, IoPerson, IoCloudOffline
 } from "react-icons/io5";
 import config from "../config";
 import api from "../api/subsonic";
@@ -104,6 +104,10 @@ export default function Sidebar() {
         <NavLink to="/all-songs" className="nav-item">
           <IoMusicalNotes className="nav-icon" />
           <span>{t("nav.allSongs")}</span>
+        </NavLink>
+        <NavLink to="/offline" className="nav-item">
+          <IoCloudOffline className="nav-icon" />
+          <span>{t("nav.offline")}</span>
         </NavLink>
       </nav>
 

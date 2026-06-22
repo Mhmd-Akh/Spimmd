@@ -101,11 +101,27 @@ export default function Settings() {
   const [newUsername, setNewUsername] = useState('');
   const [newPassword, setNewPassword] = useState('');
 
+  const [cacheSize, setCacheSize] = useState({ size: 0, maxSize: 500 });
+  const [cachePath, setCachePath] = useState('');
+  const [cacheList, setCacheList] = useState({});
+  const [maxCacheInput, setMaxCacheInput] = useState(500);
+
   const saveTimer = useRef(null);
   const scheduleSave = () => {
     clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => saveEqToConfig(), 300);
   };
+
+  useEffect(() => {
+    if (window.electronAPI) {
+      window.electronAPI.getCacheSize().then(s => {
+        setCacheSize(s);
+        setMaxCacheInput(s.maxSize);
+      });
+      window.electronAPI.getCachePath().then(p => setCachePath(p.path));
+      window.electronAPI.getCacheList().then(setCacheList);
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     const el = eqGraphicRef.current;
@@ -164,6 +180,31 @@ export default function Settings() {
     notify('t:notifications.serverDeleted', 'warning');
   };
 
+  const handleSetMaxCache = async () => {
+    if (window.electronAPI) {
+      await window.electronAPI.setMaxCacheSize(maxCacheInput);
+      const s = await window.electronAPI.getCacheSize();
+      setCacheSize(s);
+      notify('t:cache.saved', 'success');
+    }
+  };
+
+  const handleClearCache = async () => {
+    if (window.electronAPI) {
+      await window.electronAPI.clearCache();
+      setCacheList({});
+      setCacheSize({ size: 0, maxSize: cacheSize.maxSize });
+      notify('t:cache.cleared', 'warning');
+    }
+  };
+
+  const formatBytes = (bytes) => {
+    if (!bytes || bytes === 0) return '0 B';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  };
+
   return (
     <div className="settings-page">
       <h1>{t('nav.settings')}</h1>
@@ -171,11 +212,12 @@ export default function Settings() {
       <div className="settings-tabs">
         <button className={`tab-btn ${activeTab === 'connection' ? 'active' : ''}`} onClick={() => setActiveTab('connection')}>{t('settings.connection')}</button>
         <button className={`tab-btn ${activeTab === 'equalizer' ? 'active' : ''}`} onClick={() => setActiveTab('equalizer')}>{t('nav.equalizer')}</button>
+        <button className={`tab-btn ${activeTab === 'cache' ? 'active' : ''}`} onClick={() => setActiveTab('cache')}>💾 {t('settings.cache')}</button>
       </div>
 
       {activeTab === 'connection' && (
         <div className="settings-form">
-          <h3 style={{ fontSize: '16px', marginBottom: '16px' }}>اکانت‌های متصل</h3>
+          <h3 style={{ fontSize: '16px', marginBottom: '16px' }}>{t('settings.accounts')}</h3>
           <div className="servers-list" style={{ marginBottom: '20px' }}>
             {servers.map((srv, i) => (
               <div key={srv.id} className="server-card" style={{
@@ -189,7 +231,7 @@ export default function Settings() {
                   <div style={{ fontSize: '14px', fontWeight: 500 }}>{srv.name}</div>
                   <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{srv.username}@{srv.server}</div>
                 </div>
-                {srv.isActive && <span style={{ fontSize: '11px', color: 'var(--accent)', marginRight: '10px' }}>● فعال</span>}
+                {srv.isActive && <span style={{ fontSize: '11px', color: 'var(--accent)', marginRight: '10px' }}>● {t('settings.active')}</span>}
                 {!srv.isActive && (
                   <button onClick={() => handleDeleteServer(srv.id)} style={{ color: 'var(--text-secondary)', padding: '4px 8px', fontSize: '18px' }}>×</button>
                 )}
@@ -199,26 +241,26 @@ export default function Settings() {
 
           {!showAddServer && (
             <button className="btn-secondary" onClick={() => setShowAddServer(true)} style={{ width: '100%', marginBottom: '16px' }}>
-              + افزودن اکانت جدید
+              + {t('settings.addAccount')}
             </button>
           )}
 
           {showAddServer && (
             <div style={{ animation: 'fadeSlideIn 0.4s ease' }}>
               <div className="form-group" style={{ animation: 'fadeSlideIn 0.4s ease both', animationDelay: '0.1s' }}>
-                <label>آدرس سرور</label>
+                <label>{t('login.server')}</label>
                 <input type="text" value={newServer} onChange={e => setNewServer(e.target.value)} className="input-field" placeholder="https://..." />
               </div>
               <div className="form-group" style={{ animation: 'fadeSlideIn 0.4s ease both', animationDelay: '0.2s' }}>
-                <label>نام کاربری</label>
+                <label>{t('login.username')}</label>
                 <input type="text" value={newUsername} onChange={e => setNewUsername(e.target.value)} className="input-field" />
               </div>
               <div className="form-group" style={{ animation: 'fadeSlideIn 0.4s ease both', animationDelay: '0.3s' }}>
-                <label>رمز عبور</label>
+                <label>{t('login.password')}</label>
                 <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="input-field" />
               </div>
-              <button className="btn-primary" onClick={handleAddServer} style={{ marginRight: '10px' }}>ذخیره</button>
-              <button className="btn-secondary" onClick={() => setShowAddServer(false)}>انصراف</button>
+              <button className="btn-primary" onClick={handleAddServer} style={{ marginRight: '10px' }}>{t('common.save')}</button>
+              <button className="btn-secondary" onClick={() => setShowAddServer(false)}>{t('common.cancel')}</button>
             </div>
           )}
 
@@ -288,6 +330,153 @@ export default function Settings() {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {activeTab === 'cache' && (
+        <div className="settings-form" style={{ animation: 'fadeSlideIn 0.5s ease' }}>
+          {/* بیضی تخمین */}
+          <div className="cache-estimate">
+            <div className="cache-estimate-oval">
+              <span className="cache-estimate-icon">📊</span>
+              <div>
+                <span className="cache-estimate-value">~4-8 MB</span>
+                <span className="cache-estimate-label">{t('cache.perSong')}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* نوار انتخاب حجم */}
+          <div className="form-group">
+            <label>{t('cache.maxSize')}</label>
+            <div className="cache-size-bar">
+              {[500, 1024, 1536, 2048, 5120, 10240].map((size, i, arr) => {
+                const isLast = i === arr.length - 1;
+                const displaySize = size >= 1024 ? `${size / 1024}GB` : `${size}MB`;
+                const nextSize = arr[i + 1];
+                const isActive = maxCacheInput === size;
+                const isBetween = maxCacheInput > size && maxCacheInput < (nextSize || Infinity);
+
+                return (
+                  <React.Fragment key={size}>
+                    <div
+                      className={`cache-dot ${isActive ? 'active' : ''} ${isBetween ? 'in-range' : ''}`}
+                      onClick={() => setMaxCacheInput(size)}
+                      title={displaySize}
+                    >
+                      <span className="cache-dot-label">{displaySize}</span>
+                    </div>
+                    {!isLast && (
+                      <div className="cache-line">
+                        <div
+                          className={`cache-line-fill ${isBetween ? 'active' : ''}`}
+                          onClick={() => {
+                            const mid = Math.round((size + nextSize) / 2);
+                            setMaxCacheInput(mid);
+                          }}
+                        />
+                      </div>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+
+              {/* 20GB */}
+              <div className="cache-line">
+                <div
+                  className={`cache-line-fill ${maxCacheInput > 10240 && maxCacheInput < 20480 ? 'active' : ''}`}
+                  onClick={() => setMaxCacheInput(15360)}
+                />
+              </div>
+              <div
+                className={`cache-dot ${maxCacheInput === 20480 ? 'active' : ''} ${maxCacheInput > 10240 && maxCacheInput < 20480 ? 'in-range' : ''}`}
+                onClick={() => setMaxCacheInput(20480)}
+                title="20GB"
+              >
+                <span className="cache-dot-label">20GB</span>
+              </div>
+
+              {/* Unlimited */}
+              <div className="cache-line">
+                <div
+                  className={`cache-line-fill ${maxCacheInput > 20480 ? 'active' : ''}`}
+                  onClick={() => setMaxCacheInput(51200)}
+                />
+              </div>
+              <div
+                className={`cache-dot unlimited ${maxCacheInput > 20480 ? 'active' : ''} ${maxCacheInput > 20480 ? 'in-range' : ''}`}
+                onClick={() => setMaxCacheInput(102400)}
+                title="Unlimited"
+              >
+                <span className="cache-dot-label">∞</span>
+              </div>
+            </div>
+          </div>
+
+          {/* عدد دقیق */}
+          <div className="form-group">
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+              <input
+                type="number"
+                value={maxCacheInput}
+                onChange={e => setMaxCacheInput(Number(e.target.value))}
+                className="input-field"
+                style={{ flex: 1 }}
+                min="50"
+                max="102400"
+              />
+              <span style={{ fontSize: '13px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>MB</span>
+              <button className="btn-primary" onClick={handleSetMaxCache} style={{ padding: '10px 20px', fontSize: '14px' }}>{t('common.save')}</button>
+            </div>
+          </div>
+
+          {/* فضای ذخیره‌سازی */}
+          <div className="form-group">
+            <label>{t('cache.storage')}</label>
+            <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '6px' }}>
+              {formatBytes(cacheSize.size)} / {formatBytes(cacheSize.maxSize * 1024 * 1024)}
+            </div>
+            <div style={{ background: 'var(--border)', height: '6px', borderRadius: '3px', marginTop: '8px', overflow: 'hidden' }}>
+              <div style={{
+                width: `${Math.min((cacheSize.size / (cacheSize.maxSize * 1024 * 1024)) * 100, 100)}%`,
+                height: '100%',
+                background: 'var(--accent)',
+                transition: 'width 0.5s ease'
+              }} />
+            </div>
+          </div>
+
+          {/* مسیر ذخیره‌سازی */}
+          <div className="form-group">
+            <label>{t('cache.path')}</label>
+            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', wordBreak: 'break-all', background: 'var(--bg-tertiary)', padding: '10px', borderRadius: '8px', marginTop: '6px' }}>
+              {cachePath || t('common.loading')}
+            </div>
+          </div>
+
+          {/* لیست آهنگ‌های کش شده */}
+          <div className="form-group">
+            <label>{t('cache.cachedSongs')} ({Object.keys(cacheList).length})</label>
+            <div style={{ maxHeight: '200px', overflowY: 'auto', marginTop: '8px' }}>
+              {Object.keys(cacheList).length === 0 && (
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', textAlign: 'center', padding: '20px' }}>{t('cache.empty')}</div>
+              )}
+              {Object.values(cacheList).map((item, i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--border)', fontSize: '12px' }}>
+                  <span style={{ color: 'var(--text-primary)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {item.title || item.id}
+                    {item.artist && <span style={{ color: 'var(--text-secondary)', marginLeft: '8px' }}>{item.artist}</span>}
+                  </span>
+                  <span style={{ color: 'var(--text-secondary)', marginLeft: '12px' }}>{formatBytes(item.size)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* پاک کردن کش */}
+          <button className="btn-secondary" onClick={handleClearCache} style={{ color: '#ff4757', borderColor: '#ff4757', marginTop: '10px' }}>
+            🗑 {t('cache.clear')}
+          </button>
         </div>
       )}
     </div>

@@ -12,6 +12,7 @@ import AlbumPage from "./pages/AlbumPage";
 import GenresPage from "./pages/GenresPage";
 import ArtistPage from "./pages/ArtistPage";
 import SearchPage from "./pages/SearchPage";
+import OfflinePage from "./pages/OfflinePage";
 import LibraryPage from "./pages/LibraryPage";
 import PlaylistPage from "./pages/PlaylistPage";
 import FavoritesPage from "./pages/FavoritesPage";
@@ -127,7 +128,12 @@ export default function App() {
   }
 
   return (
-    <Router>
+    <Router
+      future={{
+        v7_startTransition: true,
+        v7_relativeSplatPath: true,
+      }}
+    >
       <Layout onLogout={handleLogout}>
         <Notification />
         <UpdateNotification />
@@ -139,6 +145,7 @@ export default function App() {
           <Route path="/all-songs" element={<AllSongs />} />
           <Route path="/library" element={<LibraryPage />} />
           <Route path="/album/:id" element={<AlbumPage />} />
+          <Route path="/offline" element={<OfflinePage />} />
           <Route path="/artist/:id" element={<ArtistPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
           <Route path="/liked-songs" element={<FavoritesPage />} />

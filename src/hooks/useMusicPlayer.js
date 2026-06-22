@@ -1,7 +1,6 @@
-import { useEffect, useRef } from 'react';
-import api from '../api/subsonic';
-import musicStore from '../store/musicStore';
-import { notify } from "../components/Notification";
+import { useEffect, useRef } from "react";
+import api from "../api/subsonic";
+import musicStore from "../store/musicStore";
 
 let globalAudio = null;
 let audioCtx = null;
@@ -21,286 +20,330 @@ let endedCheckInterval = null;
 export function getGlobalAudio() {
   if (!globalAudio) {
     globalAudio = new Audio();
-    globalAudio.crossOrigin = 'anonymous';
-    globalAudio.preload = 'auto';
+    globalAudio.crossOrigin = "anonymous";
+    globalAudio.preload = "auto";
   }
   return globalAudio;
 }
 
 function setupAudioContext() {
   if (audioCtx) return;
-  
-  const AudioContext = window.AudioContext || window.webkitAudioContext;
-  audioCtx = new AudioContext();
-
-  const freqs = [32, 64, 100, 160, 250, 400, 630, 1000, 1600, 2500, 4000, 6300, 10000, 16000];
-  const keys = ['32', '64', '100', '160', '250', '400', '630', '1k', '1.6k', '2.5k', '4k', '6.3k', '10k', '16k'];
-
+  const AC = window.AudioContext || window.webkitAudioContext;
+  audioCtx = new AC();
+  const fqs = [
+    32, 64, 100, 160, 250, 400, 630, 1000, 1600, 2500, 4000, 6300, 10000, 16000,
+  ];
+  const ks = [
+    "32",
+    "64",
+    "100",
+    "160",
+    "250",
+    "400",
+    "630",
+    "1k",
+    "1.6k",
+    "2.5k",
+    "4k",
+    "6.3k",
+    "10k",
+    "16k",
+  ];
   gainNode = audioCtx.createGain();
-  gainNode.gain.value = 1.0;
-
+  gainNode.gain.value = 1;
   bassBoost = audioCtx.createBiquadFilter();
-  bassBoost.type = 'lowshelf';
+  bassBoost.type = "lowshelf";
   bassBoost.frequency.value = 80;
   bassBoost.gain.value = 0;
-
-  eqNodes = freqs.map((freq, i) => {
-    const filter = audioCtx.createBiquadFilter();
-    filter.type = 'peaking';
-    filter.frequency.value = freq;
-    filter.Q.value = 2.0;
-    filter.gain.value = 0;
-    return { filter, key: keys[i] };
+  eqNodes = fqs.map((f, i) => {
+    const fl = audioCtx.createBiquadFilter();
+    fl.type = "peaking";
+    fl.frequency.value = f;
+    fl.Q.value = 2;
+    fl.gain.value = 0;
+    return { filter: fl, key: ks[i] };
   });
-
   panner = audioCtx.createStereoPanner();
   panner.pan.value = 0;
-
-  // 8D convolver + dry/wet
   convolver = audioCtx.createConvolver();
   dryGain = audioCtx.createGain();
   wetGain = audioCtx.createGain();
   dryGain.gain.value = 0.7;
   wetGain.gain.value = 0.3;
-
-  const sampleRate = audioCtx.sampleRate;
-  const length = Math.floor(sampleRate * 1.5);
-  const impulse = audioCtx.createBuffer(2, length, sampleRate);
-  for (let ch = 0; ch < 2; ch++) {
-    const data = impulse.getChannelData(ch);
-    for (let i = 0; i < length; i++) {
-      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / sampleRate * 2.5);
-    }
+  const sr = audioCtx.sampleRate;
+  const len = Math.floor(sr * 1.5);
+  const imp = audioCtx.createBuffer(2, len, sr);
+  for (let c = 0; c < 2; c++) {
+    const d = imp.getChannelData(c);
+    for (let i = 0; i < len; i++)
+      d[i] = (Math.random() * 2 - 1) * Math.exp((-i / sr) * 2.5);
   }
-  convolver.buffer = impulse;
-
-  // Virtualizer
+  convolver.buffer = imp;
   virtualizerConvolver = audioCtx.createConvolver();
   virtualizerDryGain = audioCtx.createGain();
   virtualizerWetGain = audioCtx.createGain();
-  virtualizerDryGain.gain.value = 1.0;
-  virtualizerWetGain.gain.value = 0.0;
-
-  // زنجیره
+  virtualizerDryGain.gain.value = 1;
+  virtualizerWetGain.gain.value = 0;
   bassBoost.connect(eqNodes[0].filter);
-  for (let i = 0; i < eqNodes.length - 1; i++) {
+  for (let i = 0; i < eqNodes.length - 1; i++)
     eqNodes[i].filter.connect(eqNodes[i + 1].filter);
-  }
   eqNodes[eqNodes.length - 1].filter.connect(panner);
-  
   panner.connect(dryGain);
   panner.connect(convolver);
   convolver.connect(wetGain);
-  
   dryGain.connect(virtualizerDryGain);
   wetGain.connect(virtualizerDryGain);
   dryGain.connect(virtualizerConvolver);
   wetGain.connect(virtualizerConvolver);
   virtualizerConvolver.connect(virtualizerWetGain);
-  
   virtualizerDryGain.connect(gainNode);
   virtualizerWetGain.connect(gainNode);
   gainNode.connect(audioCtx.destination);
-
   try {
-    const source = audioCtx.createMediaElementSource(globalAudio);
-    source.connect(bassBoost);
-  } catch (e) {}
+    audioCtx.createMediaElementSource(globalAudio).connect(bassBoost);
+  } catch {}
 }
 
-function loadVirtualizerImpulse(preset) {
+function loadVirtualizerImpulse(p) {
   if (!audioCtx || !virtualizerConvolver) return;
-  const sampleRate = audioCtx.sampleRate;
-  let length, decay;
-  switch(preset) {
-    case 'studio': length = Math.floor(sampleRate * 0.3); decay = 15; break;
-    case 'hall': length = Math.floor(sampleRate * 1.5); decay = 3; break;
-    case 'club': length = Math.floor(sampleRate * 2.0); decay = 2; break;
-    case 'arena': length = Math.floor(sampleRate * 3.0); decay = 1.2; break;
-    case 'cave': length = Math.floor(sampleRate * 1.8); decay = 4; break;
-    case 'forest': length = Math.floor(sampleRate * 2.5); decay = 2.5; break;
-    default: length = Math.floor(sampleRate * 0.3); decay = 15;
+  const sr = audioCtx.sampleRate;
+  let l, d;
+  switch (p) {
+    case "studio":
+      l = Math.floor(sr * 0.3);
+      d = 15;
+      break;
+    case "hall":
+      l = Math.floor(sr * 1.5);
+      d = 3;
+      break;
+    case "club":
+      l = Math.floor(sr * 2);
+      d = 2;
+      break;
+    case "arena":
+      l = Math.floor(sr * 3);
+      d = 1.2;
+      break;
+    case "cave":
+      l = Math.floor(sr * 1.8);
+      d = 4;
+      break;
+    case "forest":
+      l = Math.floor(sr * 2.5);
+      d = 2.5;
+      break;
+    default:
+      l = Math.floor(sr * 0.3);
+      d = 15;
   }
-  const impulse = audioCtx.createBuffer(2, length, sampleRate);
-  for (let ch = 0; ch < 2; ch++) {
-    const data = impulse.getChannelData(ch);
-    for (let i = 0; i < length; i++) {
-      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / sampleRate * decay);
-    }
+  const imp = audioCtx.createBuffer(2, l, sr);
+  for (let c = 0; c < 2; c++) {
+    const dt = imp.getChannelData(c);
+    for (let i = 0; i < l; i++)
+      dt[i] = (Math.random() * 2 - 1) * Math.exp((-i / sr) * d);
   }
-  virtualizerConvolver.buffer = impulse;
+  virtualizerConvolver.buffer = imp;
 }
 
-function startEightDRotation() {
-  stopEightDRotation();
-  let angle = 0;
-  const depth = musicStore.getState().threeDDepth || 50;
-  const baseSpeed = 0.08;
-  const speed = baseSpeed * (0.5 + (depth / 100) * 0.5);
-  
+function start8D() {
+  stop8D();
+  let a = 0;
+  const dp = musicStore.getState().threeDDepth || 50;
+  const sp = 0.08 * (0.5 + dp / 200);
   eightDRotation = setInterval(() => {
     if (!panner || !audioCtx) return;
-    const state = musicStore.getState();
-    if (!state.threeDEnabled || !state.isPlaying) return;
-    angle += speed;
-    const pan = Math.sin(angle) * (state.threeDDepth / 100);
-    panner.pan.setTargetAtTime(pan, audioCtx.currentTime, 0.05);
+    const s = musicStore.getState();
+    if (!s.threeDEnabled || !s.isPlaying) return;
+    a += sp;
+    panner.pan.setTargetAtTime(
+      Math.sin(a) * (s.threeDDepth / 100),
+      audioCtx.currentTime,
+      0.05,
+    );
   }, 50);
 }
-
-function stopEightDRotation() {
-  if (eightDRotation) { clearInterval(eightDRotation); eightDRotation = null; }
+function stop8D() {
+  if (eightDRotation) {
+    clearInterval(eightDRotation);
+    eightDRotation = null;
+  }
 }
 
-function applyAllSettings(state) {
+function applySettings(s) {
   if (!audioCtx) return;
-  const now = audioCtx.currentTime;
-
-  if (state.equalizerBands) {
+  const n = audioCtx.currentTime;
+  if (s.equalizerBands)
     eqNodes.forEach(({ filter, key }) => {
-      if (filter) {
-        filter.gain.setTargetAtTime(state.equalizerEnabled ? (state.equalizerBands[key] || 0) : 0, now, 0.015);
-      }
+      if (filter)
+        filter.gain.setTargetAtTime(
+          s.equalizerEnabled ? s.equalizerBands[key] || 0 : 0,
+          n,
+          0.015,
+        );
     });
-  }
-
-  if (bassBoost && state.bassBoost !== undefined) {
-    bassBoost.gain.setTargetAtTime(state.bassBoost, now, 0.015);
-  }
-
-  if (gainNode && state.volumeBoost !== undefined) {
-    const vb = state.volumeBoost || 0;
-    gainNode.gain.setTargetAtTime(Math.max(0.1, Math.min(5, 1 + (vb / 100) * 2)), now, 0.015);
-  }
-
-  // 8D
-  if (state.threeDEnabled) {
+  if (bassBoost && s.bassBoost !== undefined)
+    bassBoost.gain.setTargetAtTime(s.bassBoost, n, 0.015);
+  if (gainNode && s.volumeBoost !== undefined)
+    gainNode.gain.setTargetAtTime(
+      Math.max(0.1, Math.min(5, 1 + (s.volumeBoost / 100) * 2)),
+      n,
+      0.015,
+    );
+  if (s.threeDEnabled) {
     if (dryGain && wetGain) {
-      const depth = (state.threeDDepth || 50) / 100;
-      dryGain.gain.setTargetAtTime(0.6 - depth * 0.3, now, 0.05);
-      wetGain.gain.setTargetAtTime(0.4 + depth * 0.3, now, 0.05);
+      const dp = (s.threeDDepth || 50) / 100;
+      dryGain.gain.setTargetAtTime(0.6 - dp * 0.3, n, 0.05);
+      wetGain.gain.setTargetAtTime(0.4 + dp * 0.3, n, 0.05);
     }
-    startEightDRotation();
+    start8D();
   } else {
     if (dryGain && wetGain) {
-      dryGain.gain.setTargetAtTime(1.0, now, 0.05);
-      wetGain.gain.setTargetAtTime(0.0, now, 0.05);
+      dryGain.gain.setTargetAtTime(1, n, 0.05);
+      wetGain.gain.setTargetAtTime(0, n, 0.05);
     }
-    stopEightDRotation();
-    if (panner) panner.pan.setTargetAtTime(0, now, 0.05);
+    stop8D();
+    if (panner) panner.pan.setTargetAtTime(0, n, 0.05);
   }
-
-  // Virtualizer
-  if (state.virtualizerEnabled) {
+  if (s.virtualizerEnabled) {
     if (virtualizerDryGain && virtualizerWetGain) {
-      virtualizerDryGain.gain.setTargetAtTime(0.3, now, 0.05);
-      virtualizerWetGain.gain.setTargetAtTime(0.7, now, 0.05);
+      virtualizerDryGain.gain.setTargetAtTime(0.3, n, 0.05);
+      virtualizerWetGain.gain.setTargetAtTime(0.7, n, 0.05);
     }
-    loadVirtualizerImpulse(state.virtualizerPreset);
+    loadVirtualizerImpulse(s.virtualizerPreset);
   } else {
     if (virtualizerDryGain && virtualizerWetGain) {
-      virtualizerDryGain.gain.setTargetAtTime(1.0, now, 0.05);
-      virtualizerWetGain.gain.setTargetAtTime(0.0, now, 0.05);
+      virtualizerDryGain.gain.setTargetAtTime(1, n, 0.05);
+      virtualizerWetGain.gain.setTargetAtTime(0, n, 0.05);
     }
   }
 }
 
-function startEndedCheck(audio) {
+function startEndedCheck(a) {
   stopEndedCheck();
   endedCheckInterval = setInterval(() => {
-    if (audio && audio.duration && !audio.paused) {
-      if (audio.ended || (audio.currentTime >= audio.duration - 0.1 && audio.duration > 0)) {
-        stopEndedCheck();
-        stopEightDRotation();
-        const state = musicStore.getState();
-        if (state.repeatMode === 'one') {
-          audio.currentTime = 0;
-          audio.play().catch(() => {});
-          startEndedCheck(audio);
-        } else {
-          state.playNext();
-        }
-      }
+    if (
+      a &&
+      a.duration &&
+      !a.paused &&
+      (a.ended || (a.currentTime >= a.duration - 0.1 && a.duration > 0))
+    ) {
+      stopEndedCheck();
+      stop8D();
+      const s = musicStore.getState();
+      if (s.repeatMode === "one") {
+        a.currentTime = 0;
+        a.play().catch(() => {});
+        startEndedCheck(a);
+      } else s.playNext();
     }
   }, 500);
 }
-
 function stopEndedCheck() {
-  if (endedCheckInterval) { clearInterval(endedCheckInterval); endedCheckInterval = null; }
+  if (endedCheckInterval) {
+    clearInterval(endedCheckInterval);
+    endedCheckInterval = null;
+  }
 }
 
 export default function useMusicPlayer() {
-  const isSetup = useRef(false);
-
+  const init = useRef(false);
   useEffect(() => {
-    if (isSetup.current) return;
-    isSetup.current = true;
-
-    const audio = getGlobalAudio();
-    globalAudio = audio;
-
-    audio.addEventListener('play', () => {
+    if (init.current) return;
+    init.current = true;
+    const a = getGlobalAudio();
+    globalAudio = a;
+    a.addEventListener("play", () => {
       setupAudioContext();
-      if (audioCtx?.state === 'suspended') audioCtx.resume().then(() => applyAllSettings(musicStore.getState()));
-      applyAllSettings(musicStore.getState());
-      startEndedCheck(audio);
+      if (audioCtx?.state === "suspended")
+        audioCtx.resume().then(() => applySettings(musicStore.getState()));
+      applySettings(musicStore.getState());
+      startEndedCheck(a);
     });
-
-    audio.addEventListener('pause', () => { stopEndedCheck(); stopEightDRotation(); });
-
-    audio.addEventListener('ended', () => {
+    a.addEventListener("pause", () => {
       stopEndedCheck();
-      stopEightDRotation();
-      const state = musicStore.getState();
-      if (state.repeatMode === 'one') {
-        audio.currentTime = 0;
-        audio.play().catch(() => {});
-        startEndedCheck(audio);
-      } else {
-        state.playNext();
-      }
+      stop8D();
     });
-
-    audio.addEventListener('error', () => {
+    a.addEventListener("ended", () => {
       stopEndedCheck();
-      stopEightDRotation();
-      const state = musicStore.getState();
-      if (state.currentTrack) setTimeout(() => state.playNext(), 1500);
+      stop8D();
+      const s = musicStore.getState();
+      if (s.repeatMode === "one") {
+        a.currentTime = 0;
+        a.play().catch(() => {});
+        startEndedCheck(a);
+      } else s.playNext();
     });
-
-    audio.volume = musicStore.getState().volume;
-
+    a.addEventListener("error", () => {
+      stopEndedCheck();
+      stop8D();
+      const s = musicStore.getState();
+      if (s.currentTrack) setTimeout(() => s.playNext(), 1500);
+    });
+    a.volume = musicStore.getState().volume;
     return () => {
       stopEndedCheck();
-      stopEightDRotation();
-      audio.pause();
-      audio.src = '';
+      stop8D();
+      a.pause();
+      a.src = "";
     };
   }, []);
 
   useEffect(() => {
-    const audio = getGlobalAudio();
-    const unsubscribe = musicStore.subscribe((state, prevState) => {
-      if (state.currentTrack?.id !== prevState.currentTrack?.id) {
-        if (state.currentTrack) { audio.src = api.getStreamUrl(state.currentTrack.id); audio.load(); }
-      }
-      if (state.isPlaying !== prevState.isPlaying && state.currentTrack) {
-        if (state.isPlaying) {
-          if (audioCtx?.state === 'suspended') audioCtx.resume();
-          audio.play().then(() => {
-            if (!musicStore.getState().isPlaying) musicStore.setState({ isPlaying: true });
-            startEndedCheck(audio);
-          }).catch(() => {
-            musicStore.setState({ isPlaying: false }); 
-            notify('t:notifications.errorPlayback', 'error');
+    const a = getGlobalAudio();
+    return musicStore.subscribe((state, prev) => {
+      if (
+        state.currentTrack?.id !== prev.currentTrack?.id &&
+        state.currentTrack
+      ) {
+
+        a.pause();
+        a.src = '';
+
+        const url = api.getStreamUrl(state.currentTrack.id);
+        if (url) {
+          a.src = url;
+          a.load();
+        }
+
+        // 🔥 کش در background با opus
+        if (navigator.onLine && window.electronAPI) {
+          import("../config").then(({ default: config }) => {
+            const cacheUrl = `${config.server}/rest/stream?id=${state.currentTrack.id}&u=${encodeURIComponent(config.username)}&p=${encodeURIComponent(config.password)}&v=1.16.1&c=NavidromePlayer&format=opus&maxBitRate=128`;
+            fetch(cacheUrl)
+              .then((r) => r.arrayBuffer())
+              .then((buf) =>
+                window.electronAPI.cacheAudio(
+                  state.currentTrack.id,
+                  Array.from(new Uint8Array(buf)),
+                  state.currentTrack.title,
+                  state.currentTrack.artist,
+                ),
+              )
+              .catch(() => {});
           });
-        } else { audio.pause(); stopEndedCheck(); stopEightDRotation(); }
+        }
       }
-      if (state.volume !== prevState.volume) audio.volume = state.volume;
-      applyAllSettings(state);
+        
+      if (state.isPlaying !== prev.isPlaying && state.currentTrack) {
+        if (state.isPlaying) {
+          if (audioCtx?.state === "suspended") audioCtx.resume();
+          a.play()
+            .then(() => {
+              if (!musicStore.getState().isPlaying)
+                musicStore.setState({ isPlaying: true });
+              startEndedCheck(a);
+            })
+            .catch(() => musicStore.setState({ isPlaying: false }));
+        } else {
+          a.pause();
+          stopEndedCheck();
+          stop8D();
+        }
+      }
+      if (state.volume !== prev.volume) a.volume = state.volume;
+      applySettings(state);
     });
-    audio.volume = musicStore.getState().volume;
-    return () => unsubscribe();
   }, []);
 
   return getGlobalAudio();

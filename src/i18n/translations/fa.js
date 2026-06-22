@@ -22,6 +22,7 @@ export default {
     albums: "آلبوم‌ها",
     settings: "تنظیمات",
     equalizer: "اکولایزر",
+    offline: 'آفلاین',
   },
   player: {
     play: "پخش",
@@ -139,6 +140,10 @@ export default {
   },
   settings: {
     connection: "اتصال",
+    cache: "حافظه",
+    accounts: "اکانت‌های متصل",
+    active: "فعال",
+    addAccount: "افزودن اکانت جدید",
   },
   notifications: {
     addedToFavorites: "به علاقه‌مندی‌ها اضافه شد ❤️",
@@ -152,6 +157,8 @@ export default {
     errorConnection: "خطا در ارتباط با سرور",
     errorPlayback: "خطا در پخش آهنگ",
     errorFetch: "خطا در دریافت اطلاعات",
+    noConnection: 'اتصال به اینترنت قطع است. پخش از حافظه...',
+    offlineMode: 'حالت آفلاین - پخش از آهنگ‌های ذخیره شده',
   },
   subsonic: {
     skipalbum: "رد شدن از آلبوم",
@@ -161,5 +168,16 @@ export default {
     confirm: "آیا مطمئن هستید که می‌خواهید خارج شوید؟",
     info: "اطلاعات اکانت شما حفظ خواهد شد.",
     button: "خروج",
+  },
+  cache: {
+    storage: "فضای ذخیره‌سازی",
+    maxSize: "حداکثر حجم کش",
+    path: "مسیر ذخیره‌سازی",
+    cachedSongs: "آهنگ‌های کش شده",
+    empty: "هنوز آهنگی کش نشده",
+    clear: "پاک کردن همه کش",
+    saved: "تنظیمات کش ذخیره شد",
+    cleared: "کش پاک شد",
+    perSong: "حجم تقریبی هر آهنگ (۴ دقیقه)",
   },
 };

@@ -31,7 +31,7 @@ export default function Queue() {
         </div>
         {queue.map((track, i) => (
           <div
-            key={track.id}
+            key={`${track.id}_${i}`}  // 🔥 ترکیب id + index برای یکتا شدن
             className={`qp-item ${i === queueIndex ? "current" : ""}`}
             onDoubleClick={() => playTrack(track, queue)}
           >

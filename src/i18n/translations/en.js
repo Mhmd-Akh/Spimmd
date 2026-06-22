@@ -22,6 +22,7 @@ export default {
     albums: "Albums",
     settings: "Settings",
     equalizer: "Equalizer",
+    offline: 'Offline',
   },
   player: {
     play: "Play",
@@ -139,6 +140,10 @@ export default {
   },
   settings: {
     connection: "Connection",
+    cache: "Storage",
+    accounts: "Connected Accounts",
+    active: "Active",
+    addAccount: "Add New Account",
   },
   notifications: {
     addedToFavorites: "Added to favorites ❤️",
@@ -152,6 +157,8 @@ export default {
     errorConnection: "Server connection error",
     errorPlayback: "Playback error",
     errorFetch: "Error fetching data",
+    noConnection: 'No internet connection. Playing from cache...',
+    offlineMode: 'Offline Mode - Playing from saved songs',
   },
   subsonic: {
     skipalbum: "Skip album",
@@ -161,5 +168,16 @@ export default {
     confirm: "Are you sure you want to sign out?",
     info: "Your account information will be preserved.",
     button: "Sign Out",
+  },
+  cache: {
+    storage: "Storage",
+    maxSize: "Max Cache Size",
+    path: "Storage Path",
+    cachedSongs: "Cached Songs",
+    empty: "No songs cached yet",
+    clear: "Clear All Cache",
+    saved: "Cache settings saved",
+    cleared: "Cache cleared",
+    perSong: "Estimated size per song (4 min)",
   },
 };
