@@ -143,6 +143,3 @@ dist
 
 /unknow
 package-lock.json
-
-.gitignore
-.gitattributes
