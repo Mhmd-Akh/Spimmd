@@ -22,7 +22,7 @@ export default {
     albums: "آلبوم‌ها",
     settings: "تنظیمات",
     equalizer: "اکولایزر",
-    offline: 'آفلاین',
+    offline: "آفلاین",
   },
   player: {
     play: "پخش",
@@ -157,8 +157,8 @@ export default {
     errorConnection: "خطا در ارتباط با سرور",
     errorPlayback: "خطا در پخش آهنگ",
     errorFetch: "خطا در دریافت اطلاعات",
-    noConnection: 'اتصال به اینترنت قطع است. پخش از حافظه...',
-    offlineMode: 'حالت آفلاین - پخش از آهنگ‌های ذخیره شده',
+    noConnection: "اتصال به اینترنت قطع است. پخش از حافظه...",
+    offlineMode: "حالت آفلاین - پخش از آهنگ‌های ذخیره شده",
   },
   subsonic: {
     skipalbum: "رد شدن از آلبوم",
@@ -179,5 +179,16 @@ export default {
     saved: "تنظیمات کش ذخیره شد",
     cleared: "کش پاک شد",
     perSong: "حجم تقریبی هر آهنگ (۴ دقیقه)",
+  },
+  update: {
+    newUpdate: "به‌روزرسانی جدید",
+    available: "نسخه جدید موجود است",
+    downloading: "در حال دانلود آپدیت...",
+    ready: "آپدیت آماده نصب است",
+    required: "⚠️ این آپدیت اجباری است.",
+    download: "دانلود و نصب",
+    install: "اکنون نصب و راه‌اندازی مجدد",
+    later: "بعداً",
+    latest: "آخرین",
   },
 };

@@ -41,9 +41,9 @@
       "output": "FINAL_RELEASES"
     },
     "publish": {
-    "provider": "generic",
-    "url": "http://upload.hrmtest.ir/files/spimmd-desktop",
-    "channel": "latest"
+      "provider": "github",
+      "owner": "Mhmd-Akh",
+      "repo": "Spimmd"
     },
     "files": [
       "dist/**/*",
@@ -61,9 +61,7 @@
       "target": [
         {
           "target": "nsis",
-          "arch": [
-            "x64"
-          ]
+          "arch": ["x64"]
         }
       ],
       "icon": "electron/icon.ico",

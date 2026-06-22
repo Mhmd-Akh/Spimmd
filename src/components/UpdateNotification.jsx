@@ -1,93 +1,42 @@
-import React, { useEffect, useState } from "react";
-import { IoClose, IoChevronDown, IoChevronUp } from "react-icons/io5";
+import React, { useEffect, useState, useRef } from "react";
+import { IoClose, IoChevronDown, IoChevronUp, IoNotifications } from "react-icons/io5";
+import { useTranslation } from "react-i18next";
 
 export default function UpdateNotification() {
+  const { t } = useTranslation();
   const [updateData, setUpdateData] = useState(null);
-  const [currentVersion, setCurrentVersion] = useState("");
+  const [showPanel, setShowPanel] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [percent, setPercent] = useState(0);
   const [ready, setReady] = useState(false);
   const [expandedNotes, setExpandedNotes] = useState({});
+  const listenersSetup = useRef(false);
 
   useEffect(() => {
-    checkForUpdates();
-  }, []);
+    if (!window.electronAPI || listenersSetup.current) return;
+    listenersSetup.current = true;
 
-  useEffect(() => {
-    initUpdates();
-  }, []);
-
-  const initUpdates = async () => {
-    if (!window.electronAPI) return;
-
-    // 🔥 گرفتن ورژن فعلی از electron
-    const currentVer = await window.electronAPI.getAppVersion();
-    setCurrentVersion(currentVer);
-
-    checkForUpdates(currentVer);
-  };
-
-  const checkForUpdates = async (currentVer) => {
-    try {
-      const data = await window.electronAPI.checkUpdate();
-      if (!data?.versions?.length) return;
-
-      // پیدا کردن ورژن‌های جدیدتر
-      const newerVersions = data.versions.filter((v) => {
-        return compareVersions(v.version, currentVer) > 0;
+    window.electronAPI.onUpdateAvailable((info) => {
+      setUpdateData({
+        versions: [info],
+        required: info.required || false,
       });
+      setShowPanel(true);
+    });
 
-      if (newerVersions.length > 0) {
-        setUpdateData({
-          versions: newerVersions,
-          required: newerVersions.some((v) => v.required),
-        });
-      }
-    } catch (e) {
-      console.error("Update check error:", e);
-    }
-  };
+    window.electronAPI.onDownloadProgress((pct) => setPercent(Math.floor(pct)));
 
-  // مقایسه ورژن‌ها
-  const compareVersions = (a, b) => {
-    const pa = a.split(".").map(Number);
-    const pb = b.split(".").map(Number);
-    for (let i = 0; i < 3; i++) {
-      if ((pa[i] || 0) > (pb[i] || 0)) return 1;
-      if ((pa[i] || 0) < (pb[i] || 0)) return -1;
-    }
-    return 0;
-  };
-
-  const handleDownload = async () => {
-    if (!updateData?.versions?.length) return;
-
-    setDownloading(true);
-    const latestVersion =
-      updateData.versions[updateData.versions.length - 1].version;
-
-    // پروگرس بار
-    const interval = setInterval(() => {
-      setPercent((p) => {
-        if (p >= 90) {
-          clearInterval(interval);
-          return 90;
-        }
-        return p + Math.random() * 20;
-      });
-    }, 500);
-
-    try {
-      await window.electronAPI.downloadUpdate(latestVersion);
-      clearInterval(interval);
-      setPercent(100);
+    window.electronAPI.onUpdateDownloaded(() => {
       setDownloading(false);
       setReady(true);
-    } catch (e) {
-      clearInterval(interval);
-      setDownloading(false);
-    }
+    });
+  }, []);
+
+  const handleDownload = async () => {
+    if (!window.electronAPI) return;
+    setDownloading(true);
+    await window.electronAPI.downloadUpdate();
   };
 
   const handleInstall = () => {
@@ -95,133 +44,107 @@ export default function UpdateNotification() {
   };
 
   const handleDismiss = () => {
-    // اگه اجباریه، اجازه بسته شدن نده
     if (updateData?.required) return;
     setDismissed(true);
+    setShowPanel(false);
   };
 
   const toggleNotes = (version) => {
-    setExpandedNotes((prev) => ({
-      ...prev,
-      [version]: !prev[version],
-    }));
+    setExpandedNotes((prev) => ({ ...prev, [version]: !prev[version] }));
   };
 
-  if (!updateData || dismissed) return null;
+  // 🔥 آیکون تو TopBar رو اینجا مدیریت کن
+  const hasUpdate = !dismissed && updateData !== null;
 
-  const isRequired = updateData.required;
-  const versionGap = updateData.versions.length;
+  if (!hasUpdate && !showPanel) return null;
+
+  const isRequired = updateData?.required;
 
   return (
-    <div
-      className={`update-notification-overlay ${isRequired ? "required" : ""}`}
-    >
-      <div className="update-notification-popup">
-        {!isRequired && !downloading && !ready && (
-          <button className="update-notification-close" onClick={handleDismiss}>
-            <IoClose />
-          </button>
-        )}
+    <>
+      {/* 🔥 دکمه شناور پایین صفحه */}
+      {hasUpdate && !showPanel && (
+        <button
+          className="update-floating-btn"
+          onClick={() => setShowPanel(true)}
+          title={t('update.newUpdate')}
+        >
+          <IoNotifications />
+          <span className="update-floating-badge" />
+        </button>
+      )}
 
-        <div className="update-notification-icon">
-          {ready ? "✅" : downloading ? "📥" : "🆕"}
-        </div>
+      {/* 🔥 پنل کشویی پایین صفحه */}
+      {showPanel && updateData && (
+        <div className={`update-slide-panel ${isRequired ? "required" : ""}`}>
+          <div className="update-slide-header">
+            <h3>🆕 {t('update.available')}</h3>
+            {!isRequired && (
+              <button className="update-slide-close" onClick={handleDismiss}>
+                <IoClose />
+              </button>
+            )}
+          </div>
 
-        <h3 className="update-notification-title">
-          {ready
-            ? "آپدیت آماده نصب است"
-            : downloading
-              ? "در حال دانلود آپدیت..."
-              : `نسخه جدید موجود است (${versionGap} ورژن)`}
-        </h3>
-
-        {isRequired && (
-          <p className="update-notification-required">
-            ⚠️ این آپدیت اجباری است و برای ادامه استفاده باید نصب شود.
-          </p>
-        )}
-
-        {/* لیست اینفو ورژن‌ها */}
-        {!downloading && !ready && (
-          <div className="update-notification-versions">
-            {updateData.versions.map((v, i) => (
-              <div
-                key={v.version}
-                className={`update-version-item ${i === updateData.versions.length - 1 ? "latest" : ""}`}
-              >
-                <button
-                  className="update-version-header"
-                  onClick={() => toggleNotes(v.version)}
-                >
-                  <span className="update-version-badge">
-                    {v.required ? "🔴" : "🟢"} v{v.version}
-                    {i === updateData.versions.length - 1 && " (آخرین)"}
-                  </span>
-                  <span className="update-version-title">{v.title}</span>
-                  <span className="update-version-icon">
-                    {expandedNotes[v.version] ? (
-                      <IoChevronUp />
-                    ) : (
-                      <IoChevronDown />
+          <div className="update-slide-content">
+            {!downloading && !ready && updateData.versions && (
+              <div className="update-notification-versions">
+                {updateData.versions.map((v, i) => (
+                  <div key={v.version} className={`update-version-item ${i === updateData.versions.length - 1 ? "latest" : ""}`}>
+                    <button className="update-version-header" onClick={() => toggleNotes(v.version)}>
+                      <span className="update-version-badge">
+                        {v.required ? "🔴" : "🟢"} v{v.version}
+                        {i === updateData.versions.length - 1 ? ` (${t('update.latest')})` : ""}
+                      </span>
+                      <span className="update-version-title">{v.title || ""}</span>
+                      <span className="update-version-icon">
+                        {expandedNotes[v.version] ? <IoChevronUp /> : <IoChevronDown />}
+                      </span>
+                    </button>
+                    {expandedNotes[v.version] && v.notes && (
+                      <div className="update-version-notes">
+                        {v.releaseDate && <p className="update-version-date">📅 {v.releaseDate}</p>}
+                        {v.notes.map((note, j) => <p key={j} className="update-version-note">{note}</p>)}
+                      </div>
                     )}
-                  </span>
-                </button>
-
-                {expandedNotes[v.version] && (
-                  <div className="update-version-notes">
-                    <p className="update-version-date">📅 {v.releaseDate}</p>
-                    {v.notes.map((note, j) => (
-                      <p key={j} className="update-version-note">
-                        {note}
-                      </p>
-                    ))}
                   </div>
-                )}
+                ))}
               </div>
-            ))}
-          </div>
-        )}
+            )}
 
-        {downloading && (
-          <div className="update-notification-progress">
-            <div className="update-notification-progress-bar">
-              <div
-                className="update-notification-progress-fill"
-                style={{ width: `${percent}%` }}
-              />
+            {downloading && (
+              <div className="update-notification-progress">
+                <div className="update-notification-progress-bar">
+                  <div className="update-notification-progress-fill" style={{ width: `${percent}%` }} />
+                </div>
+                <span className="update-notification-percent">{percent}%</span>
+              </div>
+            )}
+
+            {isRequired && (
+              <p className="update-notification-required">{t('update.required')}</p>
+            )}
+
+            <div className="update-notification-actions">
+              {!downloading && !ready && (
+                <button className="btn-primary btn-sm" onClick={handleDownload}>
+                  📥 {t('update.download')}
+                </button>
+              )}
+              {ready && (
+                <button className="btn-primary btn-sm" onClick={handleInstall}>
+                  🔄 {t('update.install')}
+                </button>
+              )}
+              {!isRequired && !downloading && !ready && (
+                <button className="btn-secondary btn-sm" onClick={handleDismiss}>
+                  {t('update.later')}
+                </button>
+              )}
             </div>
-            <span className="update-notification-percent">{percent}%</span>
           </div>
-        )}
-
-        <div className="update-notification-actions">
-          {!downloading && !ready && (
-            <button
-              className="btn-primary update-notification-btn"
-              onClick={handleDownload}
-            >
-              📥 دانلود و نصب آخرین نسخه (v
-              {updateData.versions[updateData.versions.length - 1].version})
-            </button>
-          )}
-          {ready && (
-            <button
-              className="btn-primary update-notification-btn"
-              onClick={handleInstall}
-            >
-              🔄 اکنون نصب و راه‌اندازی مجدد
-            </button>
-          )}
-          {!isRequired && !downloading && !ready && (
-            <button
-              className="btn-secondary update-notification-btn"
-              onClick={handleDismiss}
-            >
-              بعداً
-            </button>
-          )}
         </div>
-      </div>
-    </div>
+      )}
+    </>
   );
 }

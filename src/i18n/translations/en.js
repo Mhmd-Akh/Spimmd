@@ -22,7 +22,7 @@ export default {
     albums: "Albums",
     settings: "Settings",
     equalizer: "Equalizer",
-    offline: 'Offline',
+    offline: "Offline",
   },
   player: {
     play: "Play",
@@ -157,8 +157,8 @@ export default {
     errorConnection: "Server connection error",
     errorPlayback: "Playback error",
     errorFetch: "Error fetching data",
-    noConnection: 'No internet connection. Playing from cache...',
-    offlineMode: 'Offline Mode - Playing from saved songs',
+    noConnection: "No internet connection. Playing from cache...",
+    offlineMode: "Offline Mode - Playing from saved songs",
   },
   subsonic: {
     skipalbum: "Skip album",
@@ -179,5 +179,16 @@ export default {
     saved: "Cache settings saved",
     cleared: "Cache cleared",
     perSong: "Estimated size per song (4 min)",
+  },
+  update: {
+    newUpdate: "New Update",
+    available: "New version available",
+    downloading: "Downloading update...",
+    ready: "Update ready to install",
+    required: "⚠️ This update is mandatory.",
+    download: "Download & Install",
+    install: "Install & Restart",
+    later: "Later",
+    latest: "Latest",
   },
 };

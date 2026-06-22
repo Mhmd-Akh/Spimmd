@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import './i18n';
 import './styles/index.css';
-import './styles/symfonium-theme.css';
+// import './styles/symfonium-theme.css';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
