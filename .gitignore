@@ -142,3 +142,7 @@ dist
 .vscode
 
 /unknow
+package-lock.json
+
+.gitignore
+.gitattributes
